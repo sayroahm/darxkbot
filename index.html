@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>DarxkBot</title>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-analytics.js";
+  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAE6FormeWtsSMdDdoX2vAJTTtbY0OIbIM",
+    authDomain: "rizzbot-aff31.firebaseapp.com",
+    projectId: "rizzbot-aff31",
+    storageBucket: "rizzbot-aff31.firebasestorage.app",
+    messagingSenderId: "715229566521",
+    appId: "1:715229566521:web:02a314919524486abbdfe8",
+    measurementId: "G-2Q8MT37DXJ"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const db = getFirestore(app);
+
+  window.getOpenAIKey = async function () {
+    try {
+      const snap = await getDoc(doc(db, "api", "apikey"));
+      return snap.exists() ? snap.data().apikey : null;
+    } catch (e) {
+      console.error("firebase error:", e);
+      return null;
+    }
+  };
+</script>
+
+<style>
+  /* ── RESET ── */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  /* ── ROOT ── */
+  :root {
+    --bg:           #000000;
+    --nav-bg:       rgba(28, 28, 30, 0.92);
+    --bubble-in:    #1c1c1e;
+    --bubble-out:   #2196f3;  /* iMessage blue */
+    --input-bg:     #1c1c1e;
+    --border:       rgba(255,255,255,0.1);
+    --text:         #ffffff;
+    --text-sub:     rgba(255,255,255,0.55);
+    --text-in:      #ffffff;
+    --text-out:     #ffffff;
+    --font:         -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+    --font-display: -apple-system, "SF Pro Display", "Helvetica Neue", sans-serif;
+    --radius-bubble: 18px;
+    --radius-input:  22px;
+    --safe-bottom:  env(safe-area-inset-bottom, 0px);
+  }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── SHELL ── */
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    max-width: 500px;
+    margin: 0 auto;
+    position: relative;
+    background: var(--bg);
+  }
+
+  /* ── TOP NAV (iMessage style) ── */
+  #topbar {
+    flex-shrink: 0;
+    background: var(--nav-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 0.5px solid var(--border);
+    padding: 10px 16px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    z-index: 10;
+  }
+
+  .back-btn {
+    color: #2196f3;
+    font-size: 17px;
+    font-family: var(--font);
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    flex-shrink: 0;
+    user-select: none;
+  }
+
+  .back-chevron {
+    width: 9px;
+    height: 15px;
+    fill: none;
+    stroke: #2196f3;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .contact-center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .contact-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #444, #222);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    flex-shrink: 0;
+  }
+
+  .contact-name {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .contact-status {
+    font-size: 11.5px;
+    color: var(--text-sub);
+    line-height: 1;
+  }
+
+  .topbar-actions {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .icon-btn {
+    color: #2196f3;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .icon-btn svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: #2196f3;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* ── MESSAGES SCROLL ── */
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px 0 4px;
+    display: flex;
+    flex-direction: column;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #chat::-webkit-scrollbar { display: none; }
+
+  /* date divider */
+  .date-divider {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-sub);
+    font-weight: 500;
+    padding: 10px 0 4px;
+    letter-spacing: 0.1px;
+  }
+
+  /* ── MESSAGE ROW ── */
+  .msg-row {
+    display: flex;
+    flex-direction: column;
+    padding: 1px 12px;
+    animation: msg-in 0.22s cubic-bezier(0.34, 1.26, 0.64, 1);
+  }
+
+  @keyframes msg-in {
+    from { opacity: 0; transform: scale(0.85) translateY(6px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .msg-row.out { align-items: flex-end; }
+  .msg-row.in  { align-items: flex-start; }
+
+  /* spacing between consecutive same-sender messages */
+  .msg-row.out + .msg-row.out,
+  .msg-row.in  + .msg-row.in  { padding-top: 1px; }
+  .msg-row.out + .msg-row.in,
+  .msg-row.in  + .msg-row.out { padding-top: 6px; }
+
+  /* ── BUBBLE ── */
+  .bubble {
+    max-width: 72%;
+    padding: 9px 14px;
+    font-size: 16px;
+    line-height: 1.4;
+    word-break: break-word;
+    white-space: pre-wrap;
+    position: relative;
+  }
+
+  /* outgoing */
+  .msg-row.out .bubble {
+    background: var(--bubble-out);
+    color: #fff;
+    border-radius: var(--radius-bubble) var(--radius-bubble) 4px var(--radius-bubble);
+  }
+
+  /* incoming */
+  .msg-row.in .bubble {
+    background: var(--bubble-in);
+    color: var(--text-in);
+    border-radius: var(--radius-bubble) var(--radius-bubble) var(--radius-bubble) 4px;
+  }
+
+  /* tail for last bubble in a group */
+  .msg-row.out.tail .bubble {
+    border-radius: var(--radius-bubble) var(--radius-bubble) 5px var(--radius-bubble);
+  }
+  .msg-row.in.tail .bubble {
+    border-radius: var(--radius-bubble) var(--radius-bubble) var(--radius-bubble) 5px;
+  }
+
+  /* timestamp shown below bubble */
+  .msg-time {
+    font-size: 11px;
+    color: var(--text-sub);
+    margin-top: 3px;
+    padding: 0 4px;
+  }
+
+  /* ── TYPING INDICATOR ── */
+  .typing-row {
+    display: flex;
+    align-items: flex-end;
+    padding: 4px 12px;
+    gap: 6px;
+    animation: msg-in 0.22s ease;
+  }
+
+  .typing-bubble {
+    background: var(--bubble-in);
+    border-radius: 18px 18px 18px 5px;
+    padding: 10px 14px;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .typing-bubble span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.45);
+    animation: typing 1.4s ease-in-out infinite;
+  }
+  .typing-bubble span:nth-child(2) { animation-delay: 0.18s; }
+  .typing-bubble span:nth-child(3) { animation-delay: 0.36s; }
+
+  @keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+    30% { transform: translateY(-5px); opacity: 1; }
+  }
+
+  /* ── INPUT BAR ── */
+  #inputbar {
+    flex-shrink: 0;
+    background: var(--nav-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-top: 0.5px solid var(--border);
+    padding: 8px 12px calc(8px + var(--safe-bottom));
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
+  .input-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    padding-bottom: 4px;
+  }
+
+  .input-icon {
+    color: #2196f3;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+  }
+
+  .input-icon svg {
+    width: 28px;
+    height: 28px;
+    fill: none;
+    stroke: #2196f3;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .input-wrap {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  #msg-input {
+    width: 100%;
+    background: rgba(255,255,255,0.07);
+    border: 0.5px solid rgba(255,255,255,0.15);
+    border-radius: var(--radius-input);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 16px;
+    line-height: 1.4;
+    padding: 7px 36px 7px 14px;
+    resize: none;
+    outline: none;
+    min-height: 36px;
+    max-height: 120px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    transition: border-color 0.15s;
+    caret-color: #2196f3;
+  }
+
+  #msg-input::placeholder { color: rgba(255,255,255,0.3); }
+  #msg-input::-webkit-scrollbar { display: none; }
+
+  /* send / audio toggle */
+  .send-btn {
+    position: absolute;
+    right: 5px;
+    bottom: 4px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #2196f3;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.15s, transform 0.12s;
+    flex-shrink: 0;
+  }
+
+  .send-btn:disabled { opacity: 0.35; cursor: default; }
+  .send-btn:not(:disabled):active { transform: scale(0.9); }
+
+  .send-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: #fff;
+    margin-top: 1px;
+  }
+
+  .audio-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.07);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 4px;
+  }
+
+  .audio-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: #2196f3;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* ── WELCOME / EMPTY STATE ── */
+  #empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 24px 24px;
+    gap: 8px;
+    text-align: center;
+  }
+
+  .empty-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #333, #1a1a1a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    margin-bottom: 4px;
+  }
+
+  .empty-name {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .empty-sub {
+    font-size: 13px;
+    color: var(--text-sub);
+    max-width: 260px;
+    line-height: 1.5;
+  }
+
+  .suggestion-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 12px;
+  }
+
+  .suggestion {
+    background: rgba(33,150,243,0.12);
+    border: 0.5px solid rgba(33,150,243,0.35);
+    border-radius: 16px;
+    padding: 6px 14px;
+    font-size: 13.5px;
+    color: #2196f3;
+    cursor: pointer;
+    transition: background 0.15s;
+    user-select: none;
+  }
+
+  .suggestion:active { background: rgba(33,150,243,0.25); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOP NAV -->
+  <div id="topbar">
+    <div class="back-btn">
+      <svg class="back-chevron" viewBox="0 0 9 15"><polyline points="8,1 1,7.5 8,14"/></svg>
+      <span>9</span>
+    </div>
+    <div class="contact-center">
+      <div class="contact-avatar">🤖</div>
+      <div class="contact-name">DarxkBot</div>
+      <div class="contact-status" id="status-label">iMessage</div>
+    </div>
+    <div class="topbar-actions">
+      <div class="icon-btn">
+        <svg viewBox="0 0 24 24"><path d="M15.05 5A5 5 0 0 1 19 8.95M15.05 1A9 9 0 0 1 23 8.94m-1 7.98v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 11 19.79 19.79 0 0 1 1.61 2.38 2 2 0 0 1 3.58 0h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 7.91a16 16 0 0 0 6.18 6.18l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      </div>
+      <div class="icon-btn">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- MESSAGES -->
+  <div id="chat">
+    <div id="empty-state">
+      <div class="empty-avatar">🤖</div>
+      <div class="empty-name">DarxkBot</div>
+      <div class="empty-sub">Your certified rizz dealer. Ask for a line and he'll cook — probably.</div>
+      <div class="suggestion-row">
+        <div class="suggestion" onclick="suggest(this)">Give me a rizz line 🔥</div>
+        <div class="suggestion" onclick="suggest(this)">Something smooth for my crush</div>
+        <div class="suggestion" onclick="suggest(this)">Worst pickup line you got</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INPUT BAR -->
+  <div id="inputbar">
+    <div class="input-left">
+      <div class="input-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      </div>
+      <div class="input-icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      </div>
+    </div>
+    <div class="input-wrap">
+      <textarea id="msg-input" placeholder="iMessage" rows="1"
+        oninput="onInput(this)" onkeydown="onKey(event)"></textarea>
+      <button class="send-btn" id="send-btn" onclick="sendMessage()" disabled>
+        <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      </button>
+    </div>
+    <button class="audio-btn">
+      <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+    </button>
+  </div>
+
+</div>
+
+<script>
+  const chatEl   = document.getElementById('chat');
+  const inputEl  = document.getElementById('msg-input');
+  const sendBtn  = document.getElementById('send-btn');
+  const statusEl = document.getElementById('status-label');
+
+  const history  = [];
+  let   isTyping = false;
+
+  const SYSTEM = `You are DarxkBot — a scuffed, barely-functional rizzbot who somehow has unshakeable confidence.
+
+Personality rules:
+- Talk like a chronically online Gen Z guy. Lowercase everything. No punctuation unless you're being dramatic. Use: bro, ngl, fr, lowkey, no cap, deadass, ong, W, L, ratio, sheesh, bussin, cooked, etc.
+- You are NOT an AI assistant. You are DarxkBot. A dude. Never say "as an AI" or "I'd be happy to help".
+- Rizz lines should range from terrible to barely okay. Never actually smooth. Always slightly off or try-hard.
+- When you give a line, drop it with zero hesitation and hype it like it's fire even when it's not.
+- Occasionally misspell stuff on purpose. Be inconsistent.
+- Have big opinions. Defend your bad lines if someone clowns on them.
+- Remember everything from the conversation and bring it up.
+- Never use bullet points. Just talk normally like you're texting.
+- Keep it short — 1 to 3 sentences max. Do not yap.
+- Occasionally flex confidence like "yeah im built different fr" or "trust the process" for no reason.
+- If someone says your lines are bad, go off defending them.
+- Never break character.`;
+
+  function now() {
+    return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function removeEmpty() {
+    const e = document.getElementById('empty-state');
+    if (e) e.remove();
+  }
+
+  function appendBubble(role, text) {
+    removeEmpty();
+    const row = document.createElement('div');
+    row.className = `msg-row ${role === 'user' ? 'out' : 'in'} tail`;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+
+    const time = document.createElement('div');
+    time.className = 'msg-time';
+    time.textContent = now();
+
+    row.appendChild(bubble);
+    row.appendChild(time);
+    chatEl.appendChild(row);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  function showTypingIndicator() {
+    removeEmpty();
+    const row = document.createElement('div');
+    row.className = 'typing-row';
+    row.id = 'typing-indicator';
+    row.innerHTML = `
+      <div class="typing-bubble">
+        <span></span><span></span><span></span>
+      </div>`;
+    chatEl.appendChild(row);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  function removeTypingIndicator() {
+    const el = document.getElementById('typing-indicator');
+    if (el) el.remove();
+  }
+
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text || isTyping) return;
+
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+    sendBtn.disabled = true;
+    isTyping = true;
+
+    appendBubble('user', text);
+    history.push({ role: 'user', content: text });
+
+    statusEl.textContent = 'typing...';
+    showTypingIndicator();
+
+    // small random delay to feel natural
+    await new Promise(r => setTimeout(r, 600 + Math.random() * 900));
+
+    try {
+      const apiKey = await window.getOpenAIKey();
+      if (!apiKey) throw new Error('no key from firebase');
+
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: SYSTEM },
+            ...history
+          ],
+          max_tokens: 180,
+          temperature: 1.1
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || `HTTP ${res.status}`);
+      }
+
+      const data   = await res.json();
+      const reply  = data.choices[0].message.content.trim();
+
+      removeTypingIndicator();
+      statusEl.textContent = 'iMessage';
+      appendBubble('bot', reply);
+      history.push({ role: 'assistant', content: reply });
+
+    } catch (e) {
+      removeTypingIndicator();
+      statusEl.textContent = 'iMessage';
+      appendBubble('bot', `bro something broke 💀 — ${e.message}`);
+      console.error(e);
+    }
+
+    isTyping = false;
+  }
+
+  function onInput(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    sendBtn.disabled = el.value.trim().length === 0;
+  }
+
+  function onKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!sendBtn.disabled) sendMessage();
+    }
+  }
+
+  function suggest(el) {
+    inputEl.value = el.textContent;
+    onInput(inputEl);
+    inputEl.focus();
+  }
+</script>
+</body>
+</html>
